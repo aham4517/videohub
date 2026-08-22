@@ -1,0 +1,37 @@
+import motor.motor_asyncio
+import os
+
+# MongoDB Connection
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://<user>:<pass>@cluster...")
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
+db = client['VideoBotDB']
+
+users_col = db['users']
+settings_col = db['settings']
+
+async def add_user(user_id, referrer_id=None):
+    user = await users_col.find_one({"_id": user_id})
+    if not user:
+        await users_col.insert_one({
+            "_id": user_id,
+            "credits": 10, # Start me 10 free
+            "referrer": referrer_id,
+            "claimed_channels": [],
+            "saved_videos": [],
+            "current_video_id": 1 # Start from video 1
+        })
+        return True
+    return False
+
+async def get_user(user_id):
+    return await users_col.find_one({"_id": user_id})
+
+async def update_credits(user_id, amount):
+    await users_col.update_one({"_id": user_id}, {"$inc": {"credits": amount}})
+
+async def get_settings():
+    settings = await settings_col.find_one({"_id": "config"})
+    if not settings:
+        settings = {"_id": "config", "credit_channels": [], "source_channel": "", "main_fsub": ""}
+        await settings_col.insert_one(settings)
+    return settings
